@@ -50,4 +50,6 @@ C++ compiler.
 ## Special Thanks
 
 I would like to take a moment to thank @PeterLemon for taking the time to put together his <a href="https://github.com/PeterLemon/Nintendo_DS_Compressors">Nintendo_DS_Compressors</a>
-repository.
+repository. I can take absolutely no credit for the LZ11 and RLE compression and decompression functions used in these utilities as they are almost exactly the same as the original
+code written by @PeterLemon. Using this C code saved me so much time, and allowed me to focus on my goal of actually documenting and modding this game rather than trying to wrap
+my thick skull around binary compression algorithms.
