@@ -44,7 +44,7 @@ C++ compiler.
   ### Linux instructions
 
   ```
-  g++ --statiic -o CCB[UTIL_NAME] CCB[UTIL_NAME].cpp
+  g++ --static -o CCB[UTIL_NAME] CCB[UTIL_NAME].cpp
   ```
 
 ## Special Thanks
