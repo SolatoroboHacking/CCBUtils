@@ -334,7 +334,7 @@ int main(int argc, char** argv) {
 		cout << "CCB Extractor v1.0 - A utility to extract the proprietary CyberConnect2 Batch (CCB) files found within Solatorobo: Red the Hunter" << endl;
 		cout << endl << "Usage: CCBExtractor [input_file] ([arg])" << endl;
 		cout << endl << "Command-line arguments:" << endl;
-		cout << endl << "-d      Extract files to new directory"
+		cout << endl << "-d      Extract files to new directory" << endl;
 		cout << "-h      This help" << endl;
 		cout << "-i      Display archive information without extracting files" << endl;
 		cout << "-l      Generate .lst file for reconstructing CCB file" << endl;
