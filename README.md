@@ -47,6 +47,21 @@ C++ compiler.
   g++ --static -o CCB[UTIL_NAME] CCB[UTIL_NAME].cpp
   ```
 
+## Usage Instructions
+
+  ### CCB Extractor
+  Use -h to view command-line options, use -l to generate a list file for reconstruction
+  ```
+  CCBExtractor foo.ccb [options]
+  ```
+
+  ### CCB Constructor
+  CCB Constructor has no command line options yet. The input file name should be
+  <i>the name of the CCB archive you want to reconstruct, e.g. foo.ccb, <b>NOT</b> foo.ccb.lst</i>
+  ```
+  CCBConstructor foo.ccb
+  ```
+
 ## Special Thanks
 
 I would like to take a moment to thank @PeterLemon for taking the time to put together his <a href="https://github.com/PeterLemon/Nintendo_DS_Compressors">Nintendo_DS_Compressors</a>
