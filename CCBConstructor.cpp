@@ -437,7 +437,10 @@ int main(int argc, char** argv) {
 			} else if (fileList[i].compressionType == 0x00) {
 				// Some files within CCB archives are completely uncompressed.
 				// These files are written with no modification.
-				fileList[i].compressedData = uncompressedData;
+				fileList[i].compressedData = new unsigned char[fileList[i].uncompressedSize];
+        for (int j = 0; j < fileList[i].uncompressedSize; j++) {
+          fileList[i].compressedData[j] = uncompressedData[j];
+        }
 				fileList[i].compressedSize = fileList[i].uncompressedSize;
 			}
 
