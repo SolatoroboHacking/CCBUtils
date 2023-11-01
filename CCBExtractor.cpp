@@ -247,6 +247,7 @@ void RLEDecode(string filename, unsigned char* compressedData, unsigned char* un
   cout << "Decompressing " << filename << endl;
 
   pak_buffer = compressedData;
+  pak_len = compressedSize;
 
   header = compressionType;
   if (header != CMD_CODE_30) {
