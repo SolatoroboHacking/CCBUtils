@@ -99,6 +99,7 @@ https://github.com/PeterLemon/Nintendo_DS_Compressors
 *//////////////////////////////////////////////
 
 
+#define CMD_CODE_10   0x10       // LZSS magic number
 #define CMD_CODE_11   0x11       // LZX big endian magic number
 #define CMD_CODE_40   0x40       // LZX low endian magic number
 
@@ -113,6 +114,12 @@ https://github.com/PeterLemon/Nintendo_DS_Compressors
 #define LZX_MASK      0x80       // first bit to check
                                  // ((((1 << LZX_SHIFT) - 1) << (8 - LZX_SHIFT)
 
+#define LZS_SHIFT     1          // bits to shift
+#define LZS_MASK      0x80       // bits to check:
+                                 // ((((1 << LZS_SHIFT) - 1) << (8 - LZS_SHIFT)
+
+#define LZS_THRESHOLD 2          // max number of bytes to not encode
+
 #define RLE_THRESHOLD 2          // max number of bytes to not encode
 
 #define LZX_THRESHOLD 2          // max number of bytes to not encode
@@ -120,6 +127,65 @@ https://github.com/PeterLemon/Nintendo_DS_Compressors
 #define LZX_F1        0x110      // max coded ((1 << 4) + (1 << 8))
 
 using namespace std;
+
+void LZ10Decode(string filename, unsigned char* compressedData, unsigned char* uncompressedData, unsigned int compressedSize, unsigned int uncompressedSize, unsigned char compressionType) {
+  unsigned char *pak_buffer, *raw_buffer, *pak, *raw, *pak_end, *raw_end;
+  unsigned int   pak_len, raw_len, header, len, pos;
+  unsigned char  flags, mask;
+
+  cout << "Decompressing " << filename << endl;
+
+  pak_buffer = compressedData;
+
+  header = compressionType;
+  if (header != CMD_CODE_10) {
+    cout << "WARNING: file is not LZSS encoded!" << endl;
+    return;
+  }
+
+  pak_len = compressedSize;
+
+  raw_len = uncompressedSize;
+  raw_buffer = uncompressedData;
+
+  pak = pak_buffer;
+  raw = raw_buffer;
+  pak_end = pak_buffer + pak_len;
+  raw_end = raw_buffer + raw_len;
+
+  mask = 0;
+
+  while (raw < raw_end) {
+    if (!(mask >>= LZS_SHIFT)) {
+      if (pak == pak_end) break;
+      flags = *pak++;
+      mask = LZS_MASK;
+    }
+
+    if (!(flags & mask)) {
+      if (pak == pak_end) break;
+      *raw++ = *pak++;
+    } else {
+      if (pak + 1 >= pak_end) break;
+      pos = *pak++;
+      pos = (pos << 8) | *pak++;
+      len = (pos >> 12) + LZS_THRESHOLD + 1;
+      if (raw + len > raw_end) {
+        cout << "WARNING: wrong decoded length!" << endl;
+        len = raw_end - raw;
+      }
+      pos = (pos & 0xFFF) + 1;
+      while (len--) *raw++ = *(raw - pos);
+    }
+  }
+
+  raw_len = raw - raw_buffer;
+
+  if (raw != raw_end) printf(", WARNING: unexpected end of encoded file!");
+
+  FILE* outputFile = fopen(filename.c_str(), "wb");
+  fwrite(raw_buffer, sizeof(char), raw_len, outputFile);
+}
 
 void LZ11Decode(string filename, unsigned char* compressedData, unsigned char* uncompressedData, unsigned int compressedSize, unsigned int uncompressedSize, unsigned char compressionType) {
   unsigned char *pak_buffer, *raw_buffer, *pak, *raw, *pak_end, *raw_end;
@@ -418,6 +484,8 @@ int main(int argc, char** argv) {
 				cout << "Compression type: 0x" << setw(2) << setfill('0') << hex << (fileList[i].compressionType & 0xff);
 				if (fileList[i].compressionType == 0x11) {
 					cout << " (LZ11 Compression)" << endl;
+				} else if (fileList[i].compressionType == 0x10) {
+					cout 	<< " (LZ10 Compression)" << endl;
 				} else if (fileList[i].compressionType == 0x30) {
 					cout << " (RLUncomp Compression)" << endl;
 				} else {
@@ -469,8 +537,10 @@ int main(int argc, char** argv) {
 				// If the file is compressed with LZ11, it is written by LZ11Decode().
 				if (fileList[i].compressionType == 0x11 || fileList[i].compressionType == 0x40) {
 					LZ11Decode(fileList[i].name, readBytes, uncompressedData, fileList[i].compressedSize, fileList[i].uncompressedSize, fileList[i].compressionType);
-					// If the file is compressed with RLE, it is written by RLEDecode().
+				} else if (fileList[i].compressionType == 0x10) {
+					LZ10Decode(fileList[i].name, readBytes, uncompressedData, fileList[i].compressedSize, fileList[i].uncompressedSize, fileList[i].compressionType);
 				} else if (fileList[i].compressionType == 0x30) {
+					// If the file is compressed with RLE, it is written by RLEDecode().
 					RLEDecode(fileList[i].name, readBytes, uncompressedData, fileList[i].compressedSize, fileList[i].uncompressedSize, fileList[i].compressionType);
 				} else {
 					// If the file is uncompressed, the data is written here

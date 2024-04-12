@@ -93,6 +93,7 @@ class archiveFile {
 		unsigned char* compressedData;
 };
 
+#define CMD_CODE_10   0x10       // LZSS magic number
 #define CMD_CODE_11   0x11       // LZX big endian magic number
 #define CMD_CODE_40   0x40       // LZX low endian magic number
 #define CMD_CODE_30   0x30       // RLE magic number
@@ -103,6 +104,14 @@ class archiveFile {
 
 #define RLE_MASK      0x80       // bits position:
                                  // ((((1 << RLE_CHECK) - 1) << (8 - RLE_CHECK)
+
+#define LZS_SHIFT     1          // bits to shift
+#define LZS_MASK      0x80       // bits to check:
+                                 // ((((1 << LZS_SHIFT) - 1) << (8 - LZS_SHIFT)
+
+#define LZS_THRESHOLD 2          // max number of bytes to not encode
+#define LZS_N         0x1000     // max offset (1 << 12)
+#define LZS_F         0x12       // max coded ((1 << 4) + LZS_THRESHOLD)
 
 #define LZX_SHIFT     1          // bits to shift
 #define LZX_MASK      0x80       // first bit to check
@@ -115,6 +124,64 @@ class archiveFile {
 #define LZX_F         0x10       // max coded (1 << 4)
 #define LZX_F1        0x110      // max coded ((1 << 4) + (1 << 8))
 #define LZX_F2        0x10110    // max coded ((1 << 4) + (1 << 8) + (1 << 16))
+
+unsigned char *LZ10Encode(unsigned char *raw_buffer, int raw_len, uint32_t *new_len) {
+  unsigned char *pak_buffer, *pak, *raw, *raw_end, *flg;
+  unsigned int   pak_len, len, pos, len_best, pos_best;
+  unsigned int   len_next, pos_next, len_post, pos_post;
+  unsigned char  mask;
+
+  int lzs_vram = 0x01;
+#define SEARCH(l,p) { \
+  l = LZS_THRESHOLD;                                          \
+                                                              \
+  pos = raw - raw_buffer >= LZS_N ? LZS_N : raw - raw_buffer; \
+  for ( ; pos > lzs_vram; pos--) {                            \
+    for (len = 0; len < LZS_F; len++) {                       \
+      if (raw + len == raw_end) break;                        \
+      if (*(raw + len) != *(raw + len - pos)) break;          \
+    }                                                         \
+                                                              \
+    if (len > l) {                                            \
+      p = pos;                                                \
+      if ((l = len) == LZS_F) break;                          \
+    }                                                         \
+  }                                                           \
+}
+
+  pak_len = raw_len + ((raw_len + 7) / 8);
+  pak_buffer = new unsigned char[pak_len];
+
+  *(unsigned int *)pak_buffer = CMD_CODE_10 | (raw_len << 8);
+
+  pak = pak_buffer;
+  raw = raw_buffer;
+  raw_end = raw_buffer + raw_len;
+
+  mask = 0;
+
+  while (raw < raw_end) {
+    if (!(mask >>= LZS_SHIFT)) {
+      *(flg = pak++) = 0;
+      mask = LZS_MASK;
+    }
+
+    SEARCH(len_best, pos_best);
+
+    if (len_best > LZS_THRESHOLD) {
+      raw += len_best;
+      *flg |= mask;
+      *pak++ = ((len_best - (LZS_THRESHOLD + 1)) << 4) | ((pos_best - 1) >> 8);
+      *pak++ = (pos_best - 1) & 0xFF;
+    } else {
+      *pak++ = *raw++;
+    }
+  }
+
+  *new_len = pak - pak_buffer;
+#undef SEARCH
+  return(pak_buffer);
+}
 
 unsigned char *LZ11Encode(unsigned char *raw_buffer, int raw_len, uint32_t *new_len, int cmd) {
   unsigned char *pak_buffer, *pak, *raw, *raw_end, *flg;
@@ -366,7 +433,9 @@ int main(int argc, char** argv) {
 			} else if (fileList[i].compressionType == 0x30) {
 				// Compression type 0x30 is RLE/RLUncomp compression
 				cout << " (RLUncomp Compression)";
-			}
+			} else if (fileList[i].compressionType == 0x10) {
+        cout << " (LZ10 Compression)";
+      }
 			cout << endl;
 
 			// Erase the compression type value from the current line
@@ -434,6 +503,8 @@ int main(int argc, char** argv) {
 			} else if (fileList[i].compressionType == 0x30) {
 				// RLE-compressed files are passed to the RLEEncode function
 				fileList[i].compressedData = RLEEncode(uncompressedData, fileList[i].uncompressedSize, &fileList[i].compressedSize);
+      } else if (fileList[i].compressionType == 0x10) {
+        fileList[i].compressedData = LZ10Encode(uncompressedData, fileList[i].uncompressedSize, &fileList[i].compressedSize);
 			} else if (fileList[i].compressionType == 0x00) {
 				// Some files within CCB archives are completely uncompressed.
 				// These files are written with no modification.
